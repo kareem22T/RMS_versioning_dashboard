@@ -10,19 +10,16 @@
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-
         .container {
             max-width: 800px;
             margin: 0 auto;
         }
-
         .card {
             background: white;
             border-radius: 12px;
@@ -30,29 +27,24 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         }
-
         h1 {
             color: #333;
             margin-bottom: 10px;
             font-size: 28px;
         }
-
         .subtitle {
             color: #666;
             margin-bottom: 30px;
         }
-
         .form-group {
             margin-bottom: 20px;
         }
-
         label {
             display: block;
             margin-bottom: 8px;
             color: #333;
             font-weight: 500;
         }
-
         input[type="text"],
         input[type="file"] {
             width: 100%;
@@ -62,29 +54,24 @@
             font-size: 14px;
             transition: border-color 0.3s;
         }
-
         input[type="text"]:focus,
         input[type="file"]:focus {
             outline: none;
             border-color: #667eea;
         }
-
         .file-input-wrapper {
             position: relative;
             overflow: hidden;
             display: inline-block;
             width: 100%;
-            height: 100px;
         }
-
         .file-input-wrapper input[type="file"] {
             position: absolute;
             left: -9999px;
         }
-
         .file-input-label {
             display: block;
-            padding: 12px;
+            padding: 30px;
             background: #f5f5f5;
             border: 2px dashed #ccc;
             border-radius: 8px;
@@ -92,18 +79,15 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-
         .file-input-label:hover {
             border-color: #667eea;
             background: #f0f0ff;
         }
-
         .file-name {
             margin-top: 10px;
             color: #666;
             font-size: 14px;
         }
-
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -116,22 +100,18 @@
             width: 100%;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-
         .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
-
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
-
         .progress-container {
             display: none;
             margin-top: 20px;
         }
-
         .progress-bar {
             width: 100%;
             height: 30px;
@@ -140,7 +120,6 @@
             overflow: hidden;
             position: relative;
         }
-
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
@@ -153,63 +132,58 @@
             font-weight: 600;
             font-size: 14px;
         }
-
+        .progress-text {
+            margin-top: 10px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
         .version-info {
             background: #f8f9fa;
             padding: 20px;
             border-radius: 8px;
             margin-top: 20px;
         }
-
         .version-row {
             display: flex;
             justify-content: space-between;
             padding: 12px 0;
             border-bottom: 1px solid #e0e0e0;
         }
-
         .version-row:last-child {
             border-bottom: none;
         }
-
         .version-label {
             color: #666;
             font-weight: 500;
         }
-
         .version-value {
             color: #333;
             font-weight: 600;
         }
-
         .alert {
             padding: 15px;
             border-radius: 8px;
             margin-top: 20px;
             display: none;
         }
-
         .alert-success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
-
         .alert-error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-
         .download-btn {
             background: #28a745;
             margin-top: 10px;
         }
-
         .download-btn:hover {
             background: #218838;
         }
-
         .version-badge {
             display: inline-block;
             padding: 4px 12px;
@@ -225,43 +199,45 @@
     <div class="container">
         <div class="card">
             <h1>📦 Version Management Dashboard</h1>
-            <p class="subtitle">Upload and manage your .exe application versions</p>
-
+            <p class="subtitle">Upload and manage your .exe application versions (chunked upload for large files)</p>
+            
             <form id="uploadForm">
                 <div class="form-group">
                     <label for="currentVersion">Current Version *</label>
                     <input type="text" id="currentVersion" placeholder="e.g., 1.3.2" required>
                 </div>
-
+                
                 <div class="form-group">
                     <label for="minVersion">Minimum Version *</label>
                     <input type="text" id="minVersion" placeholder="e.g., 1.3.1" required>
                 </div>
-
+                
                 <div class="form-group">
                     <label>Executable File (.exe) *</label>
                     <div class="file-input-wrapper">
                         <label class="file-input-label" for="fileInput">
-                            📁 Click to select .exe file (max 200MB)
+                            📁 Click to select .exe file<br>
+                            <small>Large files supported via chunked upload</small>
                         </label>
                         <input type="file" id="fileInput" accept=".exe" required>
                     </div>
                     <div class="file-name" id="fileName"></div>
                 </div>
-
+                
                 <button type="submit" class="btn" id="uploadBtn">Upload Version</button>
-
+                
                 <div class="progress-container" id="progressContainer">
                     <div class="progress-bar">
                         <div class="progress-fill" id="progressFill">0%</div>
                     </div>
+                    <div class="progress-text" id="progressText">Preparing upload...</div>
                 </div>
-
+                
                 <div class="alert alert-success" id="successAlert"></div>
                 <div class="alert alert-error" id="errorAlert"></div>
             </form>
         </div>
-
+        
         <div class="card" id="versionCard" style="display: none;">
             <h2>📊 Current Version Information</h2>
             <div class="version-info" id="versionInfo"></div>
@@ -269,12 +245,15 @@
     </div>
 
     <script>
+        const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB chunks
+        
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
         const uploadBtn = document.getElementById('uploadBtn');
         const progressContainer = document.getElementById('progressContainer');
         const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
         const successAlert = document.getElementById('successAlert');
         const errorAlert = document.getElementById('errorAlert');
         const versionCard = document.getElementById('versionCard');
@@ -292,6 +271,108 @@
         // Load current version on page load
         loadCurrentVersion();
 
+        // Chunked upload handler
+        class ChunkedUploader {
+            constructor(file, currentVersion, minVersion) {
+                this.file = file;
+                this.currentVersion = currentVersion;
+                this.minVersion = minVersion;
+                this.totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+                this.fileId = null;
+            }
+
+            async upload() {
+                try {
+                    // Step 1: Initialize upload
+                    await this.initUpload();
+                    
+                    // Step 2: Upload chunks
+                    for (let i = 0; i < this.totalChunks; i++) {
+                        await this.uploadChunk(i);
+                        this.updateProgress(i + 1);
+                    }
+                    
+                    // Step 3: Finalize upload
+                    const result = await this.finalizeUpload();
+                    return result;
+                } catch (error) {
+                    throw error;
+                }
+            }
+
+            async initUpload() {
+                progressText.textContent = 'Initializing upload...';
+                
+                const response = await fetch('/api/upload/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fileName: this.file.name,
+                        fileSize: this.file.size,
+                        totalChunks: this.totalChunks,
+                        currentVersion: this.currentVersion,
+                        minVersion: this.minVersion
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to initialize upload');
+                }
+
+                const data = await response.json();
+                this.fileId = data.fileId;
+            }
+
+            async uploadChunk(chunkIndex) {
+                const start = chunkIndex * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, this.file.size);
+                const chunk = this.file.slice(start, end);
+
+                const formData = new FormData();
+                formData.append('fileId', this.fileId);
+                formData.append('chunkIndex', chunkIndex);
+                formData.append('chunk', chunk);
+
+                progressText.textContent = `Uploading chunk ${chunkIndex + 1} of ${this.totalChunks}...`;
+
+                const response = await fetch('/api/upload/chunk', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || `Failed to upload chunk ${chunkIndex}`);
+                }
+
+                return response.json();
+            }
+
+            async finalizeUpload() {
+                progressText.textContent = 'Finalizing upload...';
+                
+                const response = await fetch('/api/upload/finalize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileId: this.fileId })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to finalize upload');
+                }
+
+                return response.json();
+            }
+
+            updateProgress(currentChunk) {
+                const progress = (currentChunk / this.totalChunks) * 100;
+                progressFill.style.width = progress + '%';
+                progressFill.textContent = Math.round(progress) + '%';
+            }
+        }
+
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -304,64 +385,36 @@
                 return;
             }
 
-            // Validate version format (basic)
+            // Validate version format
             const versionRegex = /^\d+\.\d+\.\d+$/;
             if (!versionRegex.test(currentVersion) || !versionRegex.test(minVersion)) {
                 showError('Version format must be X.Y.Z (e.g., 1.3.2)');
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('currentVersion', currentVersion);
-            formData.append('minVersion', minVersion);
-
             uploadBtn.disabled = true;
             progressContainer.style.display = 'block';
             hideAlerts();
 
             try {
-                const xhr = new XMLHttpRequest();
-
-                // Track upload progress
-                xhr.upload.addEventListener('progress', (e) => {
-                    if (e.lengthComputable) {
-                        const percentComplete = Math.round((e.loaded / e.total) * 100);
-                        progressFill.style.width = percentComplete + '%';
-                        progressFill.textContent = percentComplete + '%';
-                    }
-                });
-
-                xhr.addEventListener('load', () => {
-                    if (xhr.status === 200) {
-                        const response = JSON.parse(xhr.responseText);
-                        showSuccess('Version uploaded successfully!');
-                        uploadForm.reset();
-                        fileName.textContent = '';
-                        loadCurrentVersion();
-                    } else {
-                        const error = JSON.parse(xhr.responseText);
-                        showError(error.error || 'Upload failed');
-                    }
-                    uploadBtn.disabled = false;
-                    setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                        progressFill.style.width = '0%';
-                    }, 2000);
-                });
-
-                xhr.addEventListener('error', () => {
-                    showError('Upload failed. Please try again.');
-                    uploadBtn.disabled = false;
+                const uploader = new ChunkedUploader(file, currentVersion, minVersion);
+                const result = await uploader.upload();
+                
+                showSuccess('Version uploaded successfully!');
+                uploadForm.reset();
+                fileName.textContent = '';
+                loadCurrentVersion();
+                
+                setTimeout(() => {
                     progressContainer.style.display = 'none';
-                });
-
-                xhr.open('POST', '/api/upload');
-                xhr.send(formData);
+                    progressFill.style.width = '0%';
+                    progressText.textContent = '';
+                }, 2000);
             } catch (error) {
                 showError('Upload failed: ' + error.message);
-                uploadBtn.disabled = false;
                 progressContainer.style.display = 'none';
+            } finally {
+                uploadBtn.disabled = false;
             }
         });
 
@@ -381,7 +434,7 @@
         function displayVersionInfo(data) {
             const uploadDate = new Date(data.uploadDate).toLocaleString();
             const fileSizeMB = (data.fileSize / (1024 * 1024)).toFixed(2);
-
+            
             versionInfo.innerHTML = `
                 <div class="version-row">
                     <span class="version-label">Current Version:</span>
