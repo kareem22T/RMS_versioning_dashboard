@@ -4,9 +4,11 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const sqlite3 = require('sqlite3').verbose(); // Import sqlite3
 
 const app = express();
 const PORT = 5100;
+const DB_PATH = path.join(__dirname, 'version_data.db'); // Path to SQLite file
 
 // Middleware
 app.use(cors());
@@ -22,13 +24,47 @@ const tempDir = path.join(__dirname, 'temp');
   }
 });
 
-// In-memory storage for version info (use database in production)
-let versionData = {
-  currentVersion: null,
-  minVersion: null,
-  filename: null,
-  uploadDate: null
-};
+// --- SQLite Database Setup ---
+const db = new sqlite3.Database(DB_PATH, (err) => {
+  if (err) {
+    console.error('Error connecting to SQLite database:', err.message);
+    process.exit(1); // Exit if DB connection fails
+  }
+  console.log('Connected to the SQLite database.');
+  
+  // Create versions table if it doesn't exist
+  db.run(`CREATE TABLE IF NOT EXISTS versions (
+    id INTEGER PRIMARY KEY,
+    currentVersion TEXT NOT NULL,
+    minVersion TEXT NOT NULL,
+    filename TEXT NOT NULL UNIQUE,
+    originalName TEXT NOT NULL,
+    uploadDate TEXT NOT NULL,
+    fileSize INTEGER NOT NULL
+  )`, (err) => {
+    if (err) {
+      console.error('Error creating versions table:', err.message);
+    } else {
+      console.log('Versions table initialized.');
+    }
+  });
+});
+
+// Helper function to get the latest version data
+function getLatestVersion() {
+  return new Promise((resolve, reject) => {
+    // Select the latest version (highest id, assuming auto-increment)
+    const sql = `SELECT * FROM versions ORDER BY id DESC LIMIT 1`;
+    db.get(sql, [], (err, row) => {
+      if (err) {
+        return reject(err);
+      }
+      // If row is undefined, it means no version is available.
+      resolve(row);
+    });
+  });
+}
+// -----------------------------
 
 // Configure multer for chunk uploads
 const chunkStorage = multer.diskStorage({
@@ -158,11 +194,15 @@ app.post('/api/upload/finalize', async (req, res) => {
       });
     }
 
+    // Get current version to delete old file
+    const currentVersionData = await getLatestVersion();
+
     // Delete old version file if exists
-    if (versionData.filename) {
-      const oldFilePath = path.join(uploadsDir, versionData.filename);
+    if (currentVersionData && currentVersionData.filename) {
+      const oldFilePath = path.join(uploadsDir, currentVersionData.filename);
       if (fs.existsSync(oldFilePath)) {
         fs.unlinkSync(oldFilePath);
+        console.log(`Deleted old file: ${currentVersionData.filename}`);
       }
     }
 
@@ -192,8 +232,8 @@ app.post('/api/upload/finalize', async (req, res) => {
       writeStream.on('error', reject);
     });
 
-    // Update version data
-    versionData = {
+    // --- Update SQLite Database ---
+    const newVersionData = {
       currentVersion: metadata.currentVersion,
       minVersion: metadata.minVersion,
       filename: finalFilename,
@@ -201,6 +241,28 @@ app.post('/api/upload/finalize', async (req, res) => {
       uploadDate: new Date().toISOString(),
       fileSize: metadata.fileSize
     };
+    
+    // Insert new version data into the database
+    const insertSql = `INSERT INTO versions 
+      (currentVersion, minVersion, filename, originalName, uploadDate, fileSize) 
+      VALUES (?, ?, ?, ?, ?, ?)`;
+      
+    db.run(insertSql, [
+      newVersionData.currentVersion, 
+      newVersionData.minVersion, 
+      newVersionData.filename, 
+      newVersionData.originalName, 
+      newVersionData.uploadDate, 
+      newVersionData.fileSize
+    ], function(err) {
+      if (err) {
+        console.error('DB Insert Error:', err.message);
+        // Continue to respond, but log the DB error
+      } else {
+        console.log(`New version added with ID: ${this.lastID}`);
+      }
+    });
+    // --------------------------------
 
     // Clean up metadata
     fs.unlinkSync(metadataPath);
@@ -209,10 +271,10 @@ app.post('/api/upload/finalize', async (req, res) => {
       success: true,
       message: 'File uploaded successfully',
       data: {
-        currentVersion: versionData.currentVersion,
-        minVersion: versionData.minVersion,
-        filename: versionData.originalName,
-        uploadDate: versionData.uploadDate
+        currentVersion: newVersionData.currentVersion,
+        minVersion: newVersionData.minVersion,
+        filename: newVersionData.originalName,
+        uploadDate: newVersionData.uploadDate
       }
     });
   } catch (error) {
@@ -221,7 +283,7 @@ app.post('/api/upload/finalize', async (req, res) => {
   }
 });
 
-// Get upload status
+// Get upload status (no change needed here)
 app.get('/api/upload/status/:fileId', (req, res) => {
   try {
     const { fileId } = req.params;
@@ -246,60 +308,82 @@ app.get('/api/upload/status/:fileId', (req, res) => {
 });
 
 // Get current version info
-app.get('/api/version', (req, res) => {
-  if (!versionData.currentVersion) {
-    return res.status(404).json({ error: 'No version available' });
-  }
+app.get('/api/version', async (req, res) => {
+  try {
+    const versionData = await getLatestVersion(); // Fetch from DB
 
-  res.json({
-    currentVersion: versionData.currentVersion,
-    minVersion: versionData.minVersion,
-    downloadUrl: `/api/download/${versionData.filename}`,
-    uploadDate: versionData.uploadDate,
-    fileSize: versionData.fileSize
-  });
+    if (!versionData) {
+      return res.status(404).json({ error: 'No version available' });
+    }
+
+    res.json({
+      currentVersion: versionData.currentVersion,
+      minVersion: versionData.minVersion,
+      downloadUrl: `/api/download/${versionData.filename}`,
+      uploadDate: versionData.uploadDate,
+      fileSize: versionData.fileSize
+    });
+  } catch (error) {
+    console.error('Version check error:', error);
+    res.status(500).json({ error: 'Failed to retrieve version' });
+  }
 });
 
 // Download endpoint
-app.get('/api/download/:filename', (req, res) => {
-  const filename = req.params.filename;
-  
-  if (filename !== versionData.filename) {
-    return res.status(404).json({ error: 'File not found' });
-  }
+app.get('/api/download/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const versionData = await getLatestVersion(); // Fetch from DB
 
-  const filePath = path.join(uploadsDir, filename);
-  
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
-  }
-
-  res.download(filePath, versionData.originalName, (err) => {
-    if (err) {
-      console.error('Download error:', err);
-      res.status(500).json({ error: 'Download failed' });
+    if (!versionData || filename !== versionData.filename) {
+      return res.status(404).json({ error: 'File not found' });
     }
-  });
+
+    const filePath = path.join(uploadsDir, filename);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    res.download(filePath, versionData.originalName, (err) => {
+      if (err) {
+        console.error('Download error:', err);
+        // Check if headers already sent to avoid crashing
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Download failed' });
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Download setup error:', error);
+    res.status(500).json({ error: 'Download retrieval failed' });
+  }
 });
 
 // Check version endpoint (for client apps to check if update needed)
-app.post('/api/check-update', (req, res) => {
-  const { clientVersion } = req.body;
+app.post('/api/check-update', async (req, res) => {
+  try {
+    const { clientVersion } = req.body;
+    const versionData = await getLatestVersion(); // Fetch from DB
 
-  if (!versionData.currentVersion) {
-    return res.status(404).json({ error: 'No version available' });
+    if (!versionData || !versionData.currentVersion) {
+      return res.status(404).json({ error: 'No version available' });
+    }
+
+    const needsUpdate = compareVersions(clientVersion, versionData.minVersion) < 0;
+    const hasUpdate = compareVersions(clientVersion, versionData.currentVersion) < 0;
+
+    res.json({
+      needsUpdate,
+      hasUpdate,
+      currentVersion: versionData.currentVersion,
+      minVersion: versionData.minVersion,
+      downloadUrl: hasUpdate ? `/api/download/${versionData.filename}` : null
+    });
+  } catch (error) {
+    console.error('Check update error:', error);
+    res.status(500).json({ error: 'Failed to check update' });
   }
-
-  const needsUpdate = compareVersions(clientVersion, versionData.minVersion) < 0;
-  const hasUpdate = compareVersions(clientVersion, versionData.currentVersion) < 0;
-
-  res.json({
-    needsUpdate,
-    hasUpdate,
-    currentVersion: versionData.currentVersion,
-    minVersion: versionData.minVersion,
-    downloadUrl: hasUpdate ? `/api/download/${versionData.filename}` : null
-  });
 });
 
 // Simple version comparison (semantic versioning)
@@ -320,4 +404,15 @@ function compareVersions(v1, v2) {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  db.close((err) => {
+    if (err) {
+      console.error(err.message);
+    }
+    console.log('Closed the SQLite database connection.');
+    process.exit(0);
+  });
 });
